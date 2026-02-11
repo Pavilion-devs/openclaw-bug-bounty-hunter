@@ -1,0 +1,219 @@
+rules:
+  # Rule 1: Missing Signer Check on Fund Transfer
+  - id: missing-signer-transfer
+    pattern-either:
+      - pattern: |
+          **$FROM.try_borrow_mut_lamports()? -= $AMOUNT;
+          **$TO.try_borrow_mut_lamports()? += $AMOUNT;
+      - pattern: |
+          invoke(
+            &system_instruction::transfer($FROM, $TO, $AMOUNT),
+            &[$FROM.clone(), $TO.clone()],
+          )?;
+    languages:
+      - rust
+    message: "Missing signer check before fund transfer. Ensure the sender is a signer."
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-306: Missing Authentication for Critical Function"
+      confidence: HIGH
+
+  # Rule 2: Unchecked Arithmetic Operations
+  - id: unchecked-arithmetic
+    pattern-either:
+      - pattern: $X + $Y
+      - pattern: $X - $Y
+      - pattern: $X * $Y
+    languages:
+      - rust
+    message: "Unchecked arithmetic operation. Use checked_add, checked_sub, or checked_mul."
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-190: Integer Overflow or Wraparound"
+      confidence: MEDIUM
+
+  # Rule 3: unwrap() on Arithmetic Operations
+  - id: unwrap-on-arithmetic
+    pattern: $OP.$METHOD($ARG).unwrap()
+    languages:
+      - rust
+    message: "Dangerous unwrap() on arithmetic operation. This can panic on overflow."
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-394: Unexpected State in Control Flow"
+      confidence: HIGH
+
+  # Rule 4: Missing Account Owner Validation
+  - id: missing-owner-check
+    pattern: |
+      let $ACCOUNT = next_account_info($ITER)?;
+      ...
+      $ACCOUNT.$METHOD(...)
+    languages:
+      - rust
+    message: "Account owner not validated before use. Verify account.owner == expected_program."
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-345: Insufficient Verification of Data Authenticity"
+      confidence: MEDIUM
+
+  # Rule 5: Reentrancy Pattern
+  - id: potential-reentrancy
+    pattern-either:
+      - pattern: |
+          invoke($INSTRUCTION, $ACCOUNTS)?;
+          ...
+          $STATE.$FIELD = $VALUE;
+      - pattern: |
+          invoke_signed($INSTRUCTION, $ACCOUNTS, $SEEDS)?;
+          ...
+          $STATE.$FIELD = $VALUE;
+    languages:
+      - rust
+    message: "Potential reentrancy vulnerability. State changes should occur BEFORE external calls."
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-841: Improper Enforcement of Behavioral Workflow"
+      confidence: MEDIUM
+
+  # Rule 6: PDA Seed Validation
+  - id: pda-seed-validation
+    pattern: |
+      Pubkey::create_program_address(&[$SEED], $PROGRAM_ID)?
+    languages:
+      - rust
+    message: "PDA derivation should validate seeds match expected values."
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-20: Improper Input Validation"
+      confidence: LOW
+
+  # Rule 7: Missing Check for Account Initialization
+  - id: missing-init-check
+    pattern: |
+      let $ACCOUNT = next_account_info($ITER)?;
+      ...
+      Account::<$TYPE>::try_from($ACCOUNT)?
+    languages:
+      - rust
+    message: "Account initialization status not checked. Verify account is initialized before use."
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-665: Improper Initialization"
+      confidence: MEDIUM
+
+  # Rule 8: Dangerous expect() Usage
+  - id: dangerous-expect
+    pattern: $EXPR.expect($MSG)
+    languages:
+      - rust
+    message: "Dangerous expect() usage. This will panic if condition fails. Use proper error handling."
+    severity: WARNING
+    metadata:
+      category: reliability
+      cwe: "CWE-394: Unexpected State in Control Flow"
+      confidence: MEDIUM
+
+  # Rule 9: Unchecked CPI Return Value
+  - id: unchecked-cpi-result
+    pattern: |
+      invoke($INSTRUCTION, $ACCOUNTS);
+    languages:
+      - rust
+    message: "CPI invoke result not checked with ?. This could silently fail."
+    severity: ERROR
+    metadata:
+      category: reliability
+      cwe: "CWE-252: Unchecked Return Value"
+      confidence: HIGH
+
+  # Rule 10: Token Account Ownership Check
+  - id: token-account-ownership
+    pattern: |
+      spl_token_transfer($PARAMS)?;
+    languages:
+      - rust
+    message: "Verify token account ownership before transfer operations."
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-284: Improper Access Control"
+      confidence: LOW
+
+  # Rule 11: Oracle Price Validation
+  - id: oracle-confidence-check
+    pattern: |
+      let $PRICE = $ORACLE.agg.price;
+    languages:
+      - rust
+    message: "Oracle price used without confidence interval validation. Check confidence ratio."
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-20: Improper Input Validation"
+      confidence: MEDIUM
+
+  # Rule 12: Mutable Borrow of Multiple Accounts
+  - id: mutable-borrow-check
+    pattern: |
+      let $ACCOUNT1 = next_account_info($ITER)?;
+      let $ACCOUNT2 = next_account_info($ITER)?;
+      ...
+      let mut $DATA1 = $ACCOUNT1.data.borrow_mut();
+      let mut $DATA2 = $ACCOUNT2.data.borrow_mut();
+    languages:
+      - rust
+    message: "Ensure accounts are different before mutable borrow to avoid conflicts."
+    severity: WARNING
+    metadata:
+      category: reliability
+      cwe: "CWE-362: Concurrent Execution using Shared Resource"
+      confidence: LOW
+
+  # Rule 13: Clock Manipulation Check
+  - id: clock-manipulation
+    pattern: |
+      let clock = Clock::get()?;
+      ...
+      $VARIABLE = clock.unix_timestamp;
+    languages:
+      - rust
+    message: "Clock timestamp used. Consider if this can be manipulated for time-based attacks."
+    severity: INFO
+    metadata:
+      category: security
+      cwe: "CWE-367: Time-of-check Time-of-use (TOCTOU) Race Condition"
+      confidence: LOW
+
+  # Rule 14: Close Account Safety
+  - id: close-account-safety
+    pattern: |
+      close_account($ACCOUNT)?;
+    languages:
+      - rust
+    message: "Account closing operation. Ensure lamports are properly transferred and account is zeroed."
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-672: Operation on Resource After Expiration or Release"
+      confidence: MEDIUM
+
+  # Rule 15: Authority Transfer Validation
+  - id: authority-transfer
+    pattern: |
+      $STATE.authority = $NEW_AUTHORITY;
+    languages:
+      - rust
+    message: "Authority transfer detected. Ensure current authority signed the transaction."
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-269: Improper Privilege Management"
+      confidence: HIGH
