@@ -106,25 +106,15 @@ else
     echo -e "${GREEN}✅ GITHUB_TOKEN is set${NC}"
 fi
 
-if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-    echo ""
-    echo -e "${RED}⚠️  TELEGRAM_BOT_TOKEN not set${NC}"
-    echo "   1. Message @BotFather on Telegram"
-    echo "   2. Create new bot: /newbot"
-    echo "   3. Copy the token"
-    echo "   4. Run: export TELEGRAM_BOT_TOKEN='your_token'"
+# Check OpenClaw
+if command -v openclaw &> /dev/null; then
+    echo -e "${GREEN}✅ OpenClaw found$(openclaw --version 2>/dev/null | head -1)${NC}"
 else
-    echo -e "${GREEN}✅ TELEGRAM_BOT_TOKEN is set${NC}"
-fi
-
-if [ -z "$TELEGRAM_CHAT_ID" ]; then
     echo ""
-    echo -e "${RED}⚠️  TELEGRAM_CHAT_ID not set${NC}"
-    echo "   1. Message @userinfobot on Telegram"
-    echo "   2. Copy your chat ID"
-    echo "   3. Run: export TELEGRAM_CHAT_ID='your_chat_id'"
-else
-    echo -e "${GREEN}✅ TELEGRAM_CHAT_ID is set${NC}"
+    echo -e "${YELLOW}⚠️  OpenClaw not installed${NC}"
+    echo "   Install: curl -fsSL https://openclaw.ai/install.sh | bash"
+    echo "   Notifications are handled by OpenClaw's message tool (Telegram/WhatsApp/Discord)"
+    echo "   No separate bot token needed."
 fi
 
 echo ""
@@ -136,13 +126,15 @@ cat > .env << EOF
 # Copy these to your shell profile or export them
 
 export GITHUB_TOKEN="${GITHUB_TOKEN:-your_github_token_here}"
-export TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-your_telegram_bot_token}"
-export TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-your_chat_id}"
 
 # Optional Configuration
 export MIN_SEVERITY="High"
 export SCAN_INTERVAL_HOURS="6"
 export MAX_REPOS_PER_SCAN="10"
+
+# Notifications are handled by OpenClaw's built-in message tool.
+# No separate Telegram bot token needed — configure channels via:
+#   openclaw onboard
 EOF
 
 echo -e "${GREEN}✅ Environment file created: .env${NC}"
